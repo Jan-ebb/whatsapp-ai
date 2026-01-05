@@ -52,6 +52,14 @@ function printConfig(storePath: string, config: Record<string, unknown>): void {
   console.error(`${colors.dim}  Confirmation:   ${config.requireConfirmation ? 'required' : 'disabled'}${colors.reset}`);
   console.error(`${colors.dim}  Rate limit:     ${config.rateLimitPerMinute}/min${colors.reset}`);
   console.error(`${colors.dim}  Max messages:   ${config.maxMessagesPerQuery}${colors.reset}`);
+
+  const historySyncDays = config.historySyncDays as number | undefined;
+  const historySyncText = historySyncDays === 0
+    ? 'disabled'
+    : historySyncDays
+    ? `${historySyncDays} days`
+    : 'default (full)';
+  console.error(`${colors.dim}  History sync:   ${historySyncText}${colors.reset}`);
   console.error('');
 }
 
@@ -92,6 +100,9 @@ async function main(): Promise<void> {
     rateLimitPerMinute: parseInt(process.env.WHATSAPP_RATE_LIMIT || '60', 10),
     idleTimeoutMinutes: parseInt(process.env.WHATSAPP_IDLE_TIMEOUT || '30', 10),
     logLevel: (process.env.WHATSAPP_LOG_LEVEL as 'none' | 'errors' | 'operations') || 'errors',
+    historySyncDays: process.env.WHATSAPP_HISTORY_SYNC_DAYS
+      ? parseInt(process.env.WHATSAPP_HISTORY_SYNC_DAYS, 10)
+      : undefined,
   };
 
   printConfig(STORE_PATH, serverConfig);

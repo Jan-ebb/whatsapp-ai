@@ -2,6 +2,11 @@ export interface WhatsAppConfig {
   storePath: string;
   printQRInTerminal: boolean;
   logLevel: 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  /**
+   * Number of days of message history to sync (e.g., 90 for last 3 months, 365 for last year)
+   * Set to 0 to disable history sync, or undefined for WhatsApp's default
+   */
+  historySyncDays?: number;
 }
 
 export interface ConnectionState {

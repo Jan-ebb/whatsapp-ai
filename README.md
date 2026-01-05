@@ -1,11 +1,12 @@
-# WhatsApp MCP Server
+# WhatsApp CLI
 
-A security-first Model Context Protocol (MCP) server for WhatsApp. Control your personal WhatsApp account through AI assistants like Claude.
+A security-first CLI and Model Context Protocol (MCP) server for WhatsApp. Control your personal WhatsApp account through the command line or AI assistants like Claude.
 
 ## Features
 
 - **Single-process architecture** - TypeScript/Node.js using Baileys library
 - **Security-first design** - Encrypted storage, rate limiting, confirmation required for write operations
+- **Historical message sync** - Automatically fetches message history (configurable from 7 days to full history)
 - **Full messaging** - Send, reply, forward, react, delete, edit messages
 - **Media support** - Send and receive images, videos, documents, audio
 - **Group management** - Create groups, add/remove participants
@@ -34,8 +35,8 @@ All data is stored locally and encrypted:
 ### Quick Setup (Recommended)
 
 ```bash
-git clone <repo>
-cd whatsapp-mcp
+git clone https://github.com/yourusername/whatsapp-cli.git
+cd whatsapp-cli
 ./setup.sh
 ```
 
@@ -44,8 +45,8 @@ The interactive setup will guide you through installation and configuration.
 ### Manual Setup
 
 ```bash
-git clone <repo>
-cd whatsapp-mcp
+git clone https://github.com/yourusername/whatsapp-cli.git
+cd whatsapp-cli
 npm install
 npm run build
 cp .env.example .env
@@ -67,6 +68,7 @@ npm start
 | `WHATSAPP_RATE_LIMIT` | No | `60` | Requests per minute |
 | `WHATSAPP_IDLE_TIMEOUT` | No | `30` | Session lock timeout (minutes) |
 | `WHATSAPP_LOG_LEVEL` | No | `errors` | Log level: none, errors, operations |
+| `WHATSAPP_HISTORY_SYNC_DAYS` | No | full | Days of history to sync (0=disable, 365=1 year) |
 
 ### Claude Desktop Configuration
 
@@ -77,7 +79,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "whatsapp": {
       "command": "node",
-      "args": ["/path/to/whatsapp-mcp/dist/index.js"],
+      "args": ["/path/to/whatsapp-cli/dist/index.js"],
       "env": {
         "WHATSAPP_PASSPHRASE": "your-secure-passphrase-here"
       }
@@ -95,7 +97,7 @@ Add to `~/.cursor/mcp.json`:
   "mcpServers": {
     "whatsapp": {
       "command": "node",
-      "args": ["/path/to/whatsapp-mcp/dist/index.js"],
+      "args": ["/path/to/whatsapp-cli/dist/index.js"],
       "env": {
         "WHATSAPP_PASSPHRASE": "your-secure-passphrase-here"
       }

@@ -82,6 +82,7 @@ export async function createServer(
       storePath,
       printQRInTerminal: true,
       logLevel: securityConfig.logLevel === 'none' ? 'silent' : 'error',
+      historySyncDays: securityConfig.historySyncDays,
     },
     encryption
   );
@@ -340,6 +341,7 @@ const UTILITY_TOOLS = new Set([
   'schedule_message',
   'cancel_scheduled',
   'list_scheduled',
+  'sync_chat_history',
 ]);
 
 function isMessagingTool(name: string): boolean {

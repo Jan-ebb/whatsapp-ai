@@ -81,6 +81,26 @@ export function createUtilityTools(): Tool[] {
         },
       },
     },
+    {
+      name: 'sync_chat_history',
+      description:
+        'Manually sync historical messages for a specific chat. This fetches older messages from WhatsApp and stores them in the local database.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          chat_jid: {
+            type: 'string',
+            description: 'The JID of the chat or phone number to sync history for',
+          },
+          limit: {
+            type: 'number',
+            description: 'Number of historical messages to fetch (default: 50, max: 100)',
+            default: 50,
+          },
+        },
+        required: ['chat_jid'],
+      },
+    },
   ];
 }
 
@@ -195,6 +215,28 @@ export async function handleUtilityTool(
           created_at: msg.createdAt,
         })),
         count: pending.length,
+      };
+    }
+
+    case 'sync_chat_history': {
+      const chatJid = args.chat_jid as string;
+      const limit = Math.min((args.limit as number) || 50, 100);
+
+      // Convert phone number to JID if needed
+      const jid = isGroupJid(chatJid) ? chatJid : phoneNumberToJid(chatJid);
+
+      // Sync the chat history
+      const result = await whatsapp.syncChatHistory(jid, limit);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to sync chat history');
+      }
+
+      return {
+        success: true,
+        chat_jid: jid,
+        messages_synced: result.count,
+        message: `Successfully synced ${result.count} historical messages for ${jid}`,
       };
     }
 

@@ -13,6 +13,9 @@ export interface SecurityConfig {
 
   // Logging - message content logging is hardcoded to false
   logLevel: 'none' | 'errors' | 'operations';
+
+  // History sync
+  historySyncDays?: number;
 }
 
 export const defaultSecurityConfig: SecurityConfig = {
