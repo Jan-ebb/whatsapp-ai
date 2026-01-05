@@ -29,15 +29,28 @@ All data is stored locally and encrypted:
 ### Prerequisites
 
 - Node.js 20+
-- pnpm (or npm/yarn)
+- npm (comes with Node.js)
 
-### Setup
+### Quick Setup (Recommended)
 
 ```bash
 git clone <repo>
 cd whatsapp-mcp
-pnpm install
-pnpm run build
+./setup.sh
+```
+
+The interactive setup will guide you through installation and configuration.
+
+### Manual Setup
+
+```bash
+git clone <repo>
+cd whatsapp-mcp
+npm install
+npm run build
+cp .env.example .env
+# Edit .env and set WHATSAPP_PASSPHRASE
+npm start
 ```
 
 ## Configuration

@@ -58,6 +58,13 @@ export class WhatsAppClient extends EventEmitter {
   private readonly config: WhatsAppConfig;
   private readonly encryption: Encryption;
   private readonly logger: pino.Logger;
+  
+  // Auto-reconnect settings
+  private reconnectAttempts: number = 0;
+  private readonly maxReconnectAttempts: number = 10;
+  private readonly baseReconnectDelay: number = 1000; // 1 second
+  private readonly maxReconnectDelay: number = 60000; // 1 minute
+  private reconnectTimer: NodeJS.Timeout | null = null;
 
   constructor(config: WhatsAppConfig, encryption: Encryption) {
     super();
@@ -123,6 +130,13 @@ export class WhatsAppClient extends EventEmitter {
    * Disconnect from WhatsApp.
    */
   async disconnect(): Promise<void> {
+    // Cancel any pending reconnect
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
+
     if (this.socket) {
       this.socket.end(undefined);
       this.socket = null;
@@ -131,6 +145,41 @@ export class WhatsAppClient extends EventEmitter {
     this.connectionState.isConnected = false;
     this.connectionState.isConnecting = false;
     this.emitConnectionUpdate();
+  }
+
+  /**
+   * Schedule a reconnection attempt with exponential backoff.
+   */
+  private scheduleReconnect(reason: string): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.emit('connection.failed', {
+        reason: 'max_reconnect_attempts',
+        attempts: this.reconnectAttempts,
+      });
+      return;
+    }
+
+    // Exponential backoff with jitter
+    const delay = Math.min(
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts) + Math.random() * 1000,
+      this.maxReconnectDelay
+    );
+
+    this.reconnectAttempts++;
+
+    this.emit('connection.reconnecting', {
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.maxReconnectAttempts,
+      delay,
+      reason,
+    });
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect().catch(() => {
+        // Connection failed, will trigger another reconnect via connection.update
+      });
+    }, delay);
   }
 
   /**
@@ -546,19 +595,25 @@ export class WhatsAppClient extends EventEmitter {
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        const reason = DisconnectReason[statusCode] || 'unknown';
 
         this.connectionState.isConnected = false;
         this.connectionState.isConnecting = false;
         this.connectionState.lastDisconnect = {
-          reason: DisconnectReason[statusCode] || 'unknown',
+          reason,
           date: new Date(),
         };
 
         if (shouldReconnect) {
-          // Attempt to reconnect
-          setTimeout(() => this.connect(), 3000);
+          this.scheduleReconnect(reason);
+        } else {
+          // Logged out - reset reconnect attempts
+          this.reconnectAttempts = 0;
+          this.emit('connection.logout');
         }
       } else if (connection === 'open') {
+        // Reset reconnect attempts on successful connection
+        this.reconnectAttempts = 0;
         this.connectionState.isConnected = true;
         this.connectionState.isConnecting = false;
         this.connectionState.qrCode = null;
