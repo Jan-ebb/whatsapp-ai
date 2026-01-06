@@ -115,12 +115,20 @@ export async function handleUtilityTool(
     case 'get_connection_status': {
       const state = whatsapp.getConnectionState();
       const ownJid = whatsapp.getOwnJid();
+      const syncProgress = whatsapp.getSyncProgress();
 
       return {
         connected: state.isConnected,
         connecting: state.isConnecting,
         has_qr_code: state.qrCode !== null,
         own_jid: ownJid,
+        sync: {
+          stage: syncProgress.stage,
+          progress: syncProgress.progress,
+          chats_synced: syncProgress.chatsSynced,
+          messages_synced: syncProgress.messagesSynced,
+          estimated_time_left_seconds: syncProgress.estimatedTimeLeft,
+        },
         last_disconnect: state.lastDisconnect
           ? {
               reason: state.lastDisconnect.reason,

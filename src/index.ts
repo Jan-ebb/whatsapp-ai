@@ -119,9 +119,6 @@ async function main(): Promise<void> {
     context.whatsapp.on('connection.update', (update) => {
       if (update.isConnected) {
         log('Connected to WhatsApp', 'success');
-        console.error('');
-        log('Server is ready! Waiting for MCP client requests...', 'info');
-        console.error('');
       } else if (update.qrCode) {
         console.error('');
         log('Scan this QR code with WhatsApp on your phone:', 'info');
@@ -129,6 +126,35 @@ async function main(): Promise<void> {
         console.error('');
       } else if (update.lastDisconnect) {
         log(`Disconnected: ${update.lastDisconnect.reason}`, 'warn');
+      }
+    });
+
+    // Set up sync progress logging
+    let lastProgressLog = 0;
+    context.whatsapp.on('sync.progress' as any, (progress: { stage: string; progress?: number; chatsTotal?: number; messagesTotal?: number; estimatedTimeLeft?: number }) => {
+      const now = Date.now();
+      
+      if (progress.stage === 'syncing' && progress.progress !== undefined) {
+        // Only log every 2 seconds to avoid spam
+        if (now - lastProgressLog > 2000) {
+          lastProgressLog = now;
+          const timeLeft = progress.estimatedTimeLeft 
+            ? ` (~${progress.estimatedTimeLeft}s remaining)` 
+            : '';
+          const details = progress.chatsTotal 
+            ? ` - ${progress.chatsTotal} chats, ${progress.messagesTotal || 0} messages` 
+            : '';
+          
+          // Use carriage return to update the same line
+          process.stderr.write(`\r${colors.cyan}→${colors.reset} Syncing message history: ${progress.progress}%${details}${timeLeft}    `);
+        }
+      } else if (progress.stage === 'ready') {
+        // Clear the progress line and show completion
+        process.stderr.write('\r' + ' '.repeat(80) + '\r');
+        log('Message history synced', 'success');
+        console.error('');
+        log('Server is ready! Waiting for MCP client requests...', 'info');
+        console.error('');
       }
     });
 

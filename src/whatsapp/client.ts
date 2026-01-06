@@ -33,9 +33,20 @@ import type {
   MessageType,
 } from './types.js';
 
+export interface SyncProgress {
+  stage: 'connecting' | 'qr' | 'syncing' | 'ready';
+  progress?: number; // 0-100
+  chatsTotal?: number;
+  chatsSynced?: number;
+  messagesTotal?: number;
+  messagesSynced?: number;
+  estimatedTimeLeft?: number; // seconds
+}
+
 export interface WhatsAppClientEvents {
   'connection.update': (state: ConnectionState) => void;
   'qr': (qr: string) => void;
+  'sync.progress': (progress: SyncProgress) => void;
   'message.new': (message: IncomingMessage) => void;
   'message.update': (update: { id: string; chatJid: string; update: Partial<IncomingMessage> }) => void;
   'message.reaction': (reaction: { messageId: string; chatJid: string; emoji: string; senderJid: string }) => void;
@@ -65,6 +76,12 @@ export class WhatsAppClient extends EventEmitter {
   private readonly baseReconnectDelay: number = 1000; // 1 second
   private readonly maxReconnectDelay: number = 60000; // 1 minute
   private reconnectTimer: NodeJS.Timeout | null = null;
+
+  // Sync progress tracking
+  private syncProgress: SyncProgress = { stage: 'connecting' };
+  private syncStartTime: number = 0;
+  private historySyncCount: number = 0;
+  private expectedHistorySyncs: number = 5; // WhatsApp typically sends 5 history sync batches
 
   constructor(config: WhatsAppConfig, encryption: Encryption) {
     super();
@@ -582,6 +599,13 @@ export class WhatsAppClient extends EventEmitter {
     return this.socket?.user?.id || null;
   }
 
+  /**
+   * Get current sync progress.
+   */
+  getSyncProgress(): SyncProgress {
+    return { ...this.syncProgress };
+  }
+
   private setupEventHandlers(): void {
     if (!this.socket) return;
 
@@ -591,6 +615,8 @@ export class WhatsAppClient extends EventEmitter {
 
       if (qr) {
         this.connectionState.qrCode = qr;
+        this.syncProgress = { stage: 'qr' };
+        this.emit('sync.progress', this.syncProgress);
         if (this.config.printQRInTerminal) {
           qrcode.generate(qr, { small: true });
         }
@@ -622,6 +648,12 @@ export class WhatsAppClient extends EventEmitter {
         this.connectionState.isConnected = true;
         this.connectionState.isConnecting = false;
         this.connectionState.qrCode = null;
+        
+        // Start sync tracking
+        this.syncStartTime = Date.now();
+        this.historySyncCount = 0;
+        this.syncProgress = { stage: 'syncing', progress: 0 };
+        this.emit('sync.progress', this.syncProgress);
       }
 
       this.emitConnectionUpdate();
@@ -631,6 +663,34 @@ export class WhatsAppClient extends EventEmitter {
     this.socket.ev.on('creds.update', async () => {
       if (this.saveCreds) {
         await this.saveCreds();
+      }
+    });
+
+    // History sync progress tracking
+    this.socket.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest }) => {
+      this.historySyncCount++;
+      
+      const progress = Math.min(95, Math.round((this.historySyncCount / this.expectedHistorySyncs) * 100));
+      const elapsed = (Date.now() - this.syncStartTime) / 1000;
+      const estimatedTotal = elapsed / (progress / 100);
+      const estimatedTimeLeft = Math.max(0, Math.round(estimatedTotal - elapsed));
+      
+      this.syncProgress = {
+        stage: 'syncing',
+        progress,
+        chatsTotal: chats.length,
+        chatsSynced: chats.length,
+        messagesTotal: messages.length,
+        messagesSynced: messages.length,
+        estimatedTimeLeft,
+      };
+      
+      this.emit('sync.progress', this.syncProgress);
+      
+      // If this is the latest batch, sync is complete
+      if (isLatest) {
+        this.syncProgress = { stage: 'ready', progress: 100 };
+        this.emit('sync.progress', this.syncProgress);
       }
     });
 

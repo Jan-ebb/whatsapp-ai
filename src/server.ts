@@ -245,8 +245,9 @@ export async function createServer(
   });
 
   const start = async (): Promise<void> => {
-    // Connect to WhatsApp
-    await whatsapp.connect();
+    // Start MCP server immediately so Claude Code doesn't timeout
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
 
     // Start scheduler
     scheduler.start();
@@ -254,9 +255,11 @@ export async function createServer(
     // Unlock session
     session.unlock();
 
-    // Start MCP server
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    // Connect to WhatsApp in background (don't await)
+    // This allows MCP to respond while WhatsApp is still connecting/syncing
+    whatsapp.connect().catch((error) => {
+      console.error('WhatsApp connection error:', error);
+    });
   };
 
   return { server, context, start };
