@@ -20,10 +20,28 @@ export async function useEncryptedAuthState(
   clearCreds: () => Promise<void>;
 }> {
   const authPath = path.join(storePath, 'auth');
+  const encryptedCredsPath = path.join(authPath, 'creds.enc');
+  const credsPath = path.join(authPath, 'creds.json');
 
   // Ensure auth directory exists
   if (!fs.existsSync(authPath)) {
     fs.mkdirSync(authPath, { recursive: true });
+  }
+
+  // FIRST: Check if we need to decrypt existing creds BEFORE loading state
+  if (fs.existsSync(encryptedCredsPath)) {
+    try {
+      console.error('[Auth] Found encrypted credentials, decrypting...');
+      const encryptedData = fs.readFileSync(encryptedCredsPath, 'utf8');
+      const decrypted = encryption.decryptString(encryptedData);
+      fs.writeFileSync(credsPath, decrypted, { mode: 0o600 });
+      console.error('[Auth] Credentials decrypted successfully');
+    } catch (error) {
+      console.error('[Auth] Failed to decrypt credentials:', error);
+      // Delete corrupted encrypted file and start fresh
+      fs.unlinkSync(encryptedCredsPath);
+      throw new Error('Failed to decrypt auth credentials. Wrong passphrase? Starting fresh.');
+    }
   }
 
   // Use baileys' built-in multi-file auth state
@@ -34,21 +52,20 @@ export async function useEncryptedAuthState(
     await originalSaveCreds();
 
     // Encrypt the creds.json file if it exists
-    const credsPath = path.join(authPath, 'creds.json');
     if (fs.existsSync(credsPath)) {
-      const credsData = fs.readFileSync(credsPath, 'utf8');
-      const encryptedPath = path.join(authPath, 'creds.enc');
+      try {
+        const credsData = fs.readFileSync(credsPath, 'utf8');
 
-      // Only encrypt if not already encrypted
-      if (!credsData.startsWith('{')) {
-        return; // Already encrypted or invalid
+        // Only encrypt if it's valid JSON
+        if (credsData.startsWith('{')) {
+          const encrypted = encryption.encrypt(credsData);
+          fs.writeFileSync(encryptedCredsPath, encrypted, { mode: 0o600 });
+          // Keep creds.json for baileys to use, it will be encrypted on next startup
+          console.error('[Auth] Credentials saved and encrypted');
+        }
+      } catch (error) {
+        console.error('[Auth] Error encrypting credentials:', error);
       }
-
-      const encrypted = encryption.encrypt(credsData);
-      fs.writeFileSync(encryptedPath, encrypted, { mode: 0o600 });
-
-      // Remove unencrypted file
-      fs.unlinkSync(credsPath);
     }
   };
 
@@ -62,25 +79,6 @@ export async function useEncryptedAuthState(
       fs.rmdirSync(authPath);
     }
   };
-
-  // Check if we need to decrypt existing creds
-  const encryptedCredsPath = path.join(authPath, 'creds.enc');
-  const credsPath = path.join(authPath, 'creds.json');
-
-  if (fs.existsSync(encryptedCredsPath) && !fs.existsSync(credsPath)) {
-    try {
-      const encryptedData = fs.readFileSync(encryptedCredsPath, 'utf8');
-      const decrypted = encryption.decryptString(encryptedData);
-      fs.writeFileSync(credsPath, decrypted, { mode: 0o600 });
-
-      // Re-load state with decrypted creds
-      const { state: newState } = await useMultiFileAuthState(authPath);
-      return { state: newState, saveCreds, clearCreds };
-    } catch (error) {
-      // Decryption failed - likely wrong passphrase
-      throw new Error('Failed to decrypt auth credentials. Wrong passphrase?');
-    }
-  }
 
   return { state, saveCreds, clearCreds };
 }
