@@ -250,21 +250,63 @@ EOF
     fi
 }
 
-# Configure Claude Code using the CLI
+# Configure Claude Code by editing ~/.claude.json directly
 configure_claude_code() {
-    if ! command_exists claude; then
-        print_warn "Claude Code CLI not found. Install it first: npm install -g @anthropic-ai/claude-code"
-        return 1
+    local CONFIG_FILE="$HOME/.claude.json"
+    
+    # Create or update config
+    if [ -f "$CONFIG_FILE" ]; then
+        # Backup existing config
+        cp "$CONFIG_FILE" "$CONFIG_FILE.backup"
+        
+        # Check if whatsapp already configured
+        if grep -q '"whatsapp"' "$CONFIG_FILE"; then
+            print_warn "WhatsApp already configured in Claude Code"
+            print_warn "Backup saved to $CONFIG_FILE.backup"
+            return 1
+        else
+            # Add to existing config using Python (available on macOS)
+            python3 << EOF
+import json
+
+with open("$CONFIG_FILE", "r") as f:
+    config = json.load(f)
+
+if "mcpServers" not in config:
+    config["mcpServers"] = {}
+
+config["mcpServers"]["whatsapp"] = {
+    "command": "node",
+    "args": ["$INSTALL_DIR/dist/index.js"],
+    "env": {
+        "WHATSAPP_PASSPHRASE": "$PASSPHRASE"
+    }
+}
+
+with open("$CONFIG_FILE", "w") as f:
+    json.dump(config, f, indent=2)
+EOF
+            print_success "Added WhatsApp to Claude Code"
+            return 0
+        fi
+    else
+        # Create new config
+        cat > "$CONFIG_FILE" << EOF
+{
+  "mcpServers": {
+    "whatsapp": {
+      "command": "node",
+      "args": ["$INSTALL_DIR/dist/index.js"],
+      "env": {
+        "WHATSAPP_PASSPHRASE": "$PASSPHRASE"
+      }
+    }
+  }
+}
+EOF
+        print_success "Created Claude Code config at $CONFIG_FILE"
+        return 0
     fi
-    
-    # Remove existing config if present
-    claude mcp remove whatsapp -s user 2>/dev/null || true
-    
-    # Add MCP server globally for user with environment variable
-    claude mcp add whatsapp -s user -e WHATSAPP_PASSPHRASE="$PASSPHRASE" -- node "$INSTALL_DIR/dist/index.js"
-    
-    print_success "Added WhatsApp to Claude Code"
-    return 0
 }
 
 # Configure Claude clients
@@ -306,7 +348,7 @@ configure_claude() {
             echo "To configure manually:"
             echo ""
             echo -e "${BOLD}Claude Code:${NC}"
-            echo "  claude mcp add whatsapp -s user -e WHATSAPP_PASSPHRASE=\"your-passphrase\" -- node $INSTALL_DIR/dist/index.js"
+            echo "  Edit ~/.claude.json and add the whatsapp server config"
             echo ""
             echo -e "${BOLD}Claude Desktop:${NC}"
             echo "  Edit: ~/Library/Application Support/Claude/claude_desktop_config.json"
