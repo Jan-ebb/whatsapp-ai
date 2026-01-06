@@ -22,7 +22,9 @@ import {
   ChatStore,
   ContactStore,
   ScheduledMessageStore,
+  VectorStore,
 } from './storage/index.js';
+import { EmbeddingService } from './embeddings/index.js';
 import { WhatsAppClient } from './whatsapp/index.js';
 import { MessageScheduler } from './utils/scheduler.js';
 import { phoneNumberToJid, isGroupJid } from './utils/formatting.js';
@@ -42,6 +44,8 @@ export interface ServerContext {
   chats: ChatStore;
   contacts: ContactStore;
   scheduled: ScheduledMessageStore;
+  vectors: VectorStore;
+  embeddings: EmbeddingService;
   scheduler: MessageScheduler;
   encryption: Encryption;
   rateLimiter: RateLimiter;
@@ -63,8 +67,8 @@ export async function createServer(
   const rateLimiter = new RateLimiter(securityConfig.rateLimitPerMinute);
   const session = new SessionManager(securityConfig.idleTimeoutMinutes);
 
-  // Initialize database
-  const db = new DatabaseManager(storePath);
+  // Initialize database with encryption
+  const db = new DatabaseManager(storePath, passphrase);
   db.initialize();
 
   const dbInstance = db.getDb();
@@ -72,6 +76,22 @@ export async function createServer(
   const chats = new ChatStore(dbInstance);
   const contacts = new ContactStore(dbInstance);
   const scheduledStore = new ScheduledMessageStore(dbInstance);
+
+  // Initialize embedding service
+  const embeddings = new EmbeddingService({
+    model: process.env.WHATSAPP_EMBEDDING_MODEL || 'nomic-embed-text',
+    baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+  });
+
+  // Initialize vector store
+  const vectors = new VectorStore(dbInstance, embeddings.getDimension());
+  
+  // Try to initialize vectors (will fail gracefully if Ollama not available)
+  try {
+    vectors.initialize();
+  } catch (error) {
+    console.error('Vector store initialization failed. Semantic search disabled.');
+  }
 
   // Initialize scheduler
   const scheduler = new MessageScheduler(scheduledStore);
@@ -88,7 +108,7 @@ export async function createServer(
   );
 
   // Set up WhatsApp event handlers to sync with database
-  setupWhatsAppEventHandlers(whatsapp, { messages, chats, contacts });
+  setupWhatsAppEventHandlers(whatsapp, { messages, chats, contacts }, vectors, embeddings);
 
   // Set up scheduler event handlers
   scheduler.on('message.due', async (msg) => {
@@ -109,6 +129,8 @@ export async function createServer(
     chats,
     contacts,
     scheduled: scheduledStore,
+    vectors,
+    embeddings,
     scheduler,
     encryption,
     rateLimiter,
@@ -242,9 +264,11 @@ export async function createServer(
 
 function setupWhatsAppEventHandlers(
   whatsapp: WhatsAppClient,
-  stores: { messages: MessageStore; chats: ChatStore; contacts: ContactStore }
+  stores: { messages: MessageStore; chats: ChatStore; contacts: ContactStore },
+  vectors: VectorStore,
+  embeddings: EmbeddingService
 ): void {
-  whatsapp.on('message.new', (msg) => {
+  whatsapp.on('message.new', async (msg) => {
     stores.messages.upsert({
       id: msg.id,
       chatJid: msg.chatJid,
@@ -266,6 +290,17 @@ function setupWhatsAppEventHandlers(
       lastMessageTime: msg.timestamp.toISOString(),
       isGroup: isGroupJid(msg.chatJid),
     });
+
+    // Embed message content for semantic search (async, non-blocking)
+    if (msg.content && vectors.isInitialized()) {
+      embeddings.embed(msg.content).then((embedding) => {
+        if (embedding) {
+          vectors.upsert(msg.id, embedding, embeddings.getModel());
+        }
+      }).catch(() => {
+        // Silently fail - embedding is best-effort
+      });
+    }
   });
 
   whatsapp.on('chat.update', (chat) => {
@@ -318,6 +353,10 @@ const CHAT_TOOLS = new Set([
   'get_chat',
   'get_messages',
   'search_messages',
+  'semantic_search',
+  'hybrid_search',
+  'get_embedding_status',
+  'embed_historical_messages',
   'mark_as_read',
   'archive_chat',
   'pin_chat',

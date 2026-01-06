@@ -92,9 +92,10 @@ The WhatsApp MCP Server is a Model Context Protocol (MCP) server that allows AI 
 ### 3. Security Model
 
 **Encryption:**
-- All auth credentials encrypted with AES-256-GCM
+- **Database**: Fully encrypted with SQLCipher (AES-256)
+- **Auth credentials**: Encrypted with AES-256-GCM
 - Key derived from passphrase using PBKDF2 with SHA-512
-- Salt stored separately in `store/.salt`
+- All message content, metadata, and search indexes are encrypted at rest
 
 **Rate Limiting:**
 - Default: 60 requests per minute
@@ -239,7 +240,11 @@ Re-authentication may be required after ~20 days.
 | `list_chats` | List chats with filters |
 | `get_chat` | Get chat details |
 | `get_messages` | Get messages with pagination |
-| `search_messages` | Full-text search (FTS5) |
+| `search_messages` | Full-text keyword search (FTS5) |
+| `semantic_search` | AI-powered meaning-based search |
+| `hybrid_search` | Combined keyword + semantic search (recommended) |
+| `get_embedding_status` | Check semantic search readiness |
+| `embed_historical_messages` | Generate embeddings for old messages |
 | `mark_as_read` | Mark chat as read |
 | `archive_chat` | Archive/unarchive |
 | `pin_chat` | Pin/unpin |
@@ -287,10 +292,22 @@ Re-authentication may be required after ~20 days.
 Use send_message with recipient "1234567890" and message "Hello!" with confirm: true
 ```
 
-### Search messages
+### Search messages (keyword)
 
 ```
 Use search_messages with query "meeting tomorrow"
+```
+
+### Search messages (semantic)
+
+```
+Use semantic_search with query "messages where someone seemed frustrated about deadlines"
+```
+
+### Search messages (hybrid - recommended)
+
+```
+Use hybrid_search with query "project timeline concerns"
 ```
 
 ### Create a group
@@ -326,6 +343,60 @@ store/
 ├── database.sqlite    # SQLite database
 └── media/             # Downloaded media files
 ```
+
+## Semantic Search
+
+The server supports AI-powered semantic search using local embeddings via Ollama. This allows you to search by meaning, not just keywords.
+
+### Setup
+
+1. **Install Ollama** (if not already installed):
+   ```bash
+   # macOS
+   brew install ollama
+   
+   # Or download from https://ollama.ai
+   ```
+
+2. **Pull the embedding model**:
+   ```bash
+   ollama pull nomic-embed-text
+   ```
+
+3. **Start Ollama** (runs in background):
+   ```bash
+   ollama serve
+   ```
+
+### How It Works
+
+- **New messages**: Automatically embedded as they arrive
+- **Historical messages**: Run `embed_historical_messages` tool to process old messages
+- **Search types**:
+  - `search_messages` - Keyword only (fast, exact matches)
+  - `semantic_search` - Meaning only (finds similar concepts)
+  - `hybrid_search` - Both combined (recommended)
+
+### Example Queries
+
+Semantic search understands meaning:
+- "messages where someone seemed frustrated" - finds emotional content
+- "discussions about being late" - finds "running behind", "delayed", etc.
+- "planning conversations" - finds scheduling, coordination messages
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WHATSAPP_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
+
+### Checking Status
+
+Use `get_embedding_status` to see:
+- Whether Ollama is available
+- How many messages are embedded
+- Coverage percentage
 
 ## Auto-Reconnect
 
@@ -378,19 +449,29 @@ If you see "Logged out from WhatsApp":
 2. Restart the server
 3. Scan the new QR code
 
+### Upgrading from Unencrypted Database
+
+If you previously used an unencrypted version:
+1. Delete `store/whatsapp.db` (your old unencrypted messages)
+2. Keep `store/auth/` to preserve your WhatsApp session
+3. Restart the server - a new encrypted database will be created
+4. Historical messages will sync from WhatsApp
+
 ## Security Considerations
 
-1. **Passphrase**: Use a strong passphrase (8+ characters). It encrypts your WhatsApp credentials.
+1. **Passphrase**: Use a strong passphrase (8+ characters). It encrypts both your WhatsApp credentials and the entire message database.
 
-2. **Local Storage**: All data is stored locally. No data is sent to external servers.
+2. **Full Database Encryption**: All messages, contacts, and metadata are encrypted at rest using SQLCipher (AES-256). Without your passphrase, the database file is unreadable.
 
-3. **Confirmation Flag**: Write operations require explicit confirmation to prevent accidental actions.
+3. **Local Storage**: All data is stored locally. No data is sent to external servers.
 
-4. **Rate Limiting**: Prevents abuse and bulk data extraction.
+4. **Confirmation Flag**: Write operations require explicit confirmation to prevent accidental actions.
 
-5. **No Message Logging**: Message content is never logged to console or files.
+5. **Rate Limiting**: Prevents abuse and bulk data extraction.
 
-6. **stdio Transport**: No HTTP server exposed. Communication only via stdio.
+6. **No Message Logging**: Message content is never logged to console or files.
+
+7. **stdio Transport**: No HTTP server exposed. Communication only via stdio.
 
 ## Dependencies
 
@@ -398,7 +479,10 @@ If you see "Logged out from WhatsApp":
 |---------|---------|
 | `@modelcontextprotocol/sdk` | MCP server implementation |
 | `@whiskeysockets/baileys` | WhatsApp Web API client |
-| `better-sqlite3` | SQLite database |
+| `better-sqlite3-multiple-ciphers` | Encrypted SQLite database (SQLCipher) |
+| `sqlite-vec` | Vector similarity search extension |
+| `ollama` | Local embedding generation |
+| `dotenv` | Environment variable loading |
 | `pino` | Logging |
 | `qrcode-terminal` | QR code display |
 | `zod` | Schema validation |

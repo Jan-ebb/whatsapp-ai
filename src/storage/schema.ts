@@ -1,3 +1,4 @@
+// Main schema - always applied
 export const SCHEMA = `
 -- Contacts table
 CREATE TABLE IF NOT EXISTS contacts (
@@ -105,3 +106,27 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
 CREATE INDEX IF NOT EXISTS idx_scheduled_time ON scheduled_messages(scheduled_time);
 CREATE INDEX IF NOT EXISTS idx_scheduled_status ON scheduled_messages(status);
 `;
+
+// Vector schema - applied separately after loading sqlite-vec extension
+export const VECTOR_SCHEMA = `
+-- Message embeddings metadata table
+CREATE TABLE IF NOT EXISTS message_embeddings_meta (
+  message_id TEXT PRIMARY KEY,
+  embedding_model TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_model ON message_embeddings_meta(embedding_model);
+`;
+
+// Virtual table creation - must be done programmatically with dimension
+export function getVectorTableSQL(dimension: number): string {
+  return `
+    CREATE VIRTUAL TABLE IF NOT EXISTS message_embeddings USING vec0(
+      message_id TEXT PRIMARY KEY,
+      embedding FLOAT[${dimension}]
+    );
+  `;
+}
+

@@ -16,8 +16,9 @@ A security-first CLI and Model Context Protocol (MCP) server for WhatsApp. Contr
 
 ## Security
 
-All data is stored locally and encrypted:
+All data is stored locally and fully encrypted:
 
+- **Encrypted database** - All messages encrypted at rest with SQLCipher (AES-256)
 - **Encrypted credentials** - WhatsApp auth state encrypted with AES-256-GCM
 - **No network exposure** - stdio transport only, no HTTP server
 - **Confirmation required** - Write operations require explicit `confirm: true`
