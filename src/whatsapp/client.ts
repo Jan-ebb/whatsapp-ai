@@ -669,35 +669,65 @@ export class WhatsAppClient extends EventEmitter {
     // History sync progress tracking
     let totalChats = 0;
     let totalMessages = 0;
+    let syncTimeout: NodeJS.Timeout | null = null;
+    let lastSyncBatch = 0;
+    
+    const markSyncComplete = () => {
+      if (this.syncProgress.stage !== 'ready') {
+        this.syncProgress = {
+          stage: 'ready',
+          progress: 100,
+          chatsTotal: totalChats,
+          chatsSynced: totalChats,
+          messagesTotal: totalMessages,
+          messagesSynced: totalMessages,
+          estimatedTimeLeft: 0,
+        };
+        this.emit('sync.progress', this.syncProgress);
+      }
+    };
     
     this.socket.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest }) => {
       this.historySyncCount++;
       totalChats += chats.length;
       totalMessages += messages.length;
+      lastSyncBatch = Date.now();
       
       // Log for debugging
       console.error(`\n[Sync] Batch ${this.historySyncCount}: ${chats.length} chats, ${messages.length} messages, isLatest=${isLatest}`);
       
       const elapsed = (Date.now() - this.syncStartTime) / 1000;
       
-      // Use a time-based approach: assume sync takes ~60 seconds total
-      // Don't rely on isLatest for first few batches as it can be unreliable
-      const minSyncTime = 5; // Wait at least 5 seconds before showing "ready"
+      // Clear any existing timeout
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
+      }
+      
+      // If isLatest is true, we're done
+      if (isLatest) {
+        markSyncComplete();
+        return;
+      }
+      
+      // Set a timeout - if no new batches arrive in 10 seconds, consider sync complete
+      syncTimeout = setTimeout(() => {
+        console.error(`\n[Sync] No new batches for 10s, marking sync complete`);
+        markSyncComplete();
+      }, 10000);
+      
+      // Calculate progress
       const estimatedTotalTime = 60;
       const progress = Math.min(95, Math.round((elapsed / estimatedTotalTime) * 100));
       const estimatedTimeLeft = Math.max(0, Math.round(estimatedTotalTime - elapsed));
       
-      // Only mark as ready if isLatest AND we've been syncing for at least minSyncTime
-      const isReallyDone = isLatest && elapsed > minSyncTime;
-      
       this.syncProgress = {
-        stage: isReallyDone ? 'ready' : 'syncing',
-        progress: isReallyDone ? 100 : progress,
+        stage: 'syncing',
+        progress,
         chatsTotal: totalChats,
         chatsSynced: totalChats,
         messagesTotal: totalMessages,
         messagesSynced: totalMessages,
-        estimatedTimeLeft: isReallyDone ? 0 : estimatedTimeLeft,
+        estimatedTimeLeft,
       };
       
       this.emit('sync.progress', this.syncProgress);
