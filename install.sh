@@ -186,50 +186,29 @@ EOF
     print_success "Configuration saved"
 }
 
-# Configure Claude Desktop
-configure_claude() {
-    CLAUDE_CONFIG_DIR="$HOME/Library/Application Support/Claude"
-    CLAUDE_CONFIG="$CLAUDE_CONFIG_DIR/claude_desktop_config.json"
-    
-    echo ""
-    read -p "Configure Claude Desktop automatically? (Y/n) " -n 1 -r
-    echo ""
-    
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
-        print_warn "Skipping Claude Desktop configuration"
-        echo ""
-        echo "To configure manually, add this to your Claude Desktop config:"
-        echo ""
-        echo '  "whatsapp": {'
-        echo '    "command": "node",'
-        echo "    \"args\": [\"$INSTALL_DIR/dist/index.js\"],"
-        echo '    "env": {'
-        echo '      "WHATSAPP_PASSPHRASE": "your-passphrase"'
-        echo '    }'
-        echo '  }'
-        return
-    fi
-    
-    print_step "Configuring Claude Desktop..."
+# Add WhatsApp to an MCP config file
+add_to_mcp_config() {
+    local CONFIG_FILE="$1"
+    local CONFIG_NAME="$2"
     
     # Create directory if needed
-    mkdir -p "$CLAUDE_CONFIG_DIR"
+    mkdir -p "$(dirname "$CONFIG_FILE")"
     
     # Create or update config
-    if [ -f "$CLAUDE_CONFIG" ]; then
+    if [ -f "$CONFIG_FILE" ]; then
         # Backup existing config
-        cp "$CLAUDE_CONFIG" "$CLAUDE_CONFIG.backup"
+        cp "$CONFIG_FILE" "$CONFIG_FILE.backup"
         
         # Check if whatsapp already configured
-        if grep -q '"whatsapp"' "$CLAUDE_CONFIG"; then
-            print_warn "WhatsApp already configured in Claude Desktop"
-            print_warn "Backup saved to $CLAUDE_CONFIG.backup"
+        if grep -q '"whatsapp"' "$CONFIG_FILE"; then
+            print_warn "WhatsApp already configured in $CONFIG_NAME"
+            return 1
         else
             # Add to existing config using Python (available on macOS)
             python3 << EOF
 import json
 
-with open("$CLAUDE_CONFIG", "r") as f:
+with open("$CONFIG_FILE", "r") as f:
     config = json.load(f)
 
 if "mcpServers" not in config:
@@ -243,14 +222,15 @@ config["mcpServers"]["whatsapp"] = {
     }
 }
 
-with open("$CLAUDE_CONFIG", "w") as f:
+with open("$CONFIG_FILE", "w") as f:
     json.dump(config, f, indent=2)
 EOF
-            print_success "Added WhatsApp to Claude Desktop config"
+            print_success "Added WhatsApp to $CONFIG_NAME"
+            return 0
         fi
     else
         # Create new config
-        cat > "$CLAUDE_CONFIG" << EOF
+        cat > "$CONFIG_FILE" << EOF
 {
   "mcpServers": {
     "whatsapp": {
@@ -263,8 +243,63 @@ EOF
   }
 }
 EOF
-        print_success "Created Claude Desktop config"
+        print_success "Created $CONFIG_NAME config"
+        return 0
     fi
+}
+
+# Configure Claude clients
+configure_claude() {
+    # Config file locations
+    CLAUDE_DESKTOP_DIR="$HOME/Library/Application Support/Claude"
+    CLAUDE_DESKTOP_CONFIG="$CLAUDE_DESKTOP_DIR/claude_desktop_config.json"
+    
+    CLAUDE_CODE_DIR="$HOME/.claude"
+    CLAUDE_CODE_CONFIG="$CLAUDE_CODE_DIR/mcp.json"
+    
+    echo ""
+    echo -e "${BOLD}Which Claude client do you want to configure?${NC}"
+    echo ""
+    echo "  1) Claude Desktop"
+    echo "  2) Claude Code (CLI)"
+    echo "  3) Both"
+    echo "  4) Skip (configure manually later)"
+    echo ""
+    read -p "Choice [1-4]: " -n 1 -r CHOICE
+    echo ""
+    
+    case $CHOICE in
+        1)
+            print_step "Configuring Claude Desktop..."
+            add_to_mcp_config "$CLAUDE_DESKTOP_CONFIG" "Claude Desktop"
+            ;;
+        2)
+            print_step "Configuring Claude Code..."
+            add_to_mcp_config "$CLAUDE_CODE_CONFIG" "Claude Code"
+            ;;
+        3)
+            print_step "Configuring Claude Desktop..."
+            add_to_mcp_config "$CLAUDE_DESKTOP_CONFIG" "Claude Desktop"
+            print_step "Configuring Claude Code..."
+            add_to_mcp_config "$CLAUDE_CODE_CONFIG" "Claude Code"
+            ;;
+        4|*)
+            print_warn "Skipping automatic configuration"
+            echo ""
+            echo "To configure manually, add this to your MCP config:"
+            echo ""
+            echo -e "${DIM}Claude Desktop: ~/Library/Application Support/Claude/claude_desktop_config.json${NC}"
+            echo -e "${DIM}Claude Code:    ~/.claude/mcp.json${NC}"
+            echo ""
+            echo '  "whatsapp": {'
+            echo '    "command": "node",'
+            echo "    \"args\": [\"$INSTALL_DIR/dist/index.js\"],"
+            echo '    "env": {'
+            echo "      \"WHATSAPP_PASSPHRASE\": \"$PASSPHRASE\""
+            echo '    }'
+            echo '  }'
+            ;;
+    esac
 }
 
 # Print completion message
@@ -276,7 +311,7 @@ print_complete() {
     echo ""
     echo -e "${BOLD}Next steps:${NC}"
     echo ""
-    echo "  1. Restart Claude Desktop"
+    echo "  1. Restart your Claude client (Desktop or Code)"
     echo ""
     echo "  2. Ask Claude to connect to WhatsApp:"
     echo -e "     ${DIM}\"Connect to my WhatsApp\"${NC}"

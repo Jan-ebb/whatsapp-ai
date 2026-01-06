@@ -1,6 +1,6 @@
 # WhatsApp AI
 
-A secure AI assistant for WhatsApp with semantic search. Control your personal WhatsApp through AI assistants like Claude with full message history and intelligent search.
+A secure AI assistant for WhatsApp with semantic search. Control your personal WhatsApp through Claude Desktop or Claude Code with full message history and intelligent search.
 
 ## Quick Install (macOS)
 
@@ -8,7 +8,7 @@ A secure AI assistant for WhatsApp with semantic search. Control your personal W
 curl -fsSL https://raw.githubusercontent.com/Jan-ebb/whatsapp-ai/main/install.sh | bash
 ```
 
-This will install everything you need and configure Claude Desktop automatically.
+This will install everything you need and configure Claude Desktop or Claude Code automatically.
 
 ## Features
 
@@ -65,9 +65,11 @@ ollama serve
 | `WHATSAPP_HISTORY_SYNC_DAYS` | No | full | Days of history to sync |
 | `WHATSAPP_EMBEDDING_MODEL` | No | `nomic-embed-text` | Ollama model for embeddings |
 
-### Claude Desktop Configuration
+### Claude Configuration
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+**Claude Desktop** - Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+**Claude Code** - Add to `~/.claude/mcp.json`
 
 ```json
 {
