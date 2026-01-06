@@ -122,7 +122,11 @@ async function init() {
 
   // Initialize WhatsApp client
   const whatsapp = new WhatsAppClient(
-    { storePath: STORE_PATH, printQRInTerminal: true },
+    { 
+      storePath: STORE_PATH, 
+      printQRInTerminal: true,
+      logLevel: 'silent',
+    },
     encryption
   );
 
