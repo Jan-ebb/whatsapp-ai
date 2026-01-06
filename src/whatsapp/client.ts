@@ -667,23 +667,37 @@ export class WhatsAppClient extends EventEmitter {
     });
 
     // History sync progress tracking
+    let totalChats = 0;
+    let totalMessages = 0;
+    
     this.socket.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest }) => {
       this.historySyncCount++;
+      totalChats += chats.length;
+      totalMessages += messages.length;
       
-      // Don't go to 100% until isLatest is true
-      const progress = isLatest ? 100 : Math.min(95, Math.round((this.historySyncCount / this.expectedHistorySyncs) * 100));
+      // Log for debugging
+      console.error(`\n[Sync] Batch ${this.historySyncCount}: ${chats.length} chats, ${messages.length} messages, isLatest=${isLatest}`);
+      
       const elapsed = (Date.now() - this.syncStartTime) / 1000;
-      const estimatedTotal = progress > 0 ? elapsed / (progress / 100) : 60;
-      const estimatedTimeLeft = Math.max(0, Math.round(estimatedTotal - elapsed));
+      
+      // Use a time-based approach: assume sync takes ~60 seconds total
+      // Don't rely on isLatest for first few batches as it can be unreliable
+      const minSyncTime = 5; // Wait at least 5 seconds before showing "ready"
+      const estimatedTotalTime = 60;
+      const progress = Math.min(95, Math.round((elapsed / estimatedTotalTime) * 100));
+      const estimatedTimeLeft = Math.max(0, Math.round(estimatedTotalTime - elapsed));
+      
+      // Only mark as ready if isLatest AND we've been syncing for at least minSyncTime
+      const isReallyDone = isLatest && elapsed > minSyncTime;
       
       this.syncProgress = {
-        stage: isLatest ? 'ready' : 'syncing',
-        progress,
-        chatsTotal: chats.length,
-        chatsSynced: chats.length,
-        messagesTotal: messages.length,
-        messagesSynced: messages.length,
-        estimatedTimeLeft: isLatest ? 0 : estimatedTimeLeft,
+        stage: isReallyDone ? 'ready' : 'syncing',
+        progress: isReallyDone ? 100 : progress,
+        chatsTotal: totalChats,
+        chatsSynced: totalChats,
+        messagesTotal: totalMessages,
+        messagesSynced: totalMessages,
+        estimatedTimeLeft: isReallyDone ? 0 : estimatedTimeLeft,
       };
       
       this.emit('sync.progress', this.syncProgress);
