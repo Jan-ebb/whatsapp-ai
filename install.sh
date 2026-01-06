@@ -260,11 +260,8 @@ configure_claude_code() {
     # Remove existing config if present
     claude mcp remove whatsapp -s user 2>/dev/null || true
     
-    # Add MCP server globally for user
-    claude mcp add whatsapp -s user -- node "$INSTALL_DIR/dist/index.js"
-    
-    # Add environment variable
-    claude mcp add-env whatsapp WHATSAPP_PASSPHRASE "$PASSPHRASE" -s user
+    # Add MCP server globally for user with environment variable
+    claude mcp add whatsapp -s user -e WHATSAPP_PASSPHRASE="$PASSPHRASE" -- node "$INSTALL_DIR/dist/index.js"
     
     print_success "Added WhatsApp to Claude Code"
     return 0
@@ -309,8 +306,7 @@ configure_claude() {
             echo "To configure manually:"
             echo ""
             echo -e "${BOLD}Claude Code:${NC}"
-            echo "  claude mcp add whatsapp -s user -- node $INSTALL_DIR/dist/index.js"
-            echo "  claude mcp add-env whatsapp WHATSAPP_PASSPHRASE \"$PASSPHRASE\" -s user"
+            echo "  claude mcp add whatsapp -s user -e WHATSAPP_PASSPHRASE=\"your-passphrase\" -- node $INSTALL_DIR/dist/index.js"
             echo ""
             echo -e "${BOLD}Claude Desktop:${NC}"
             echo "  Edit: ~/Library/Application Support/Claude/claude_desktop_config.json"
