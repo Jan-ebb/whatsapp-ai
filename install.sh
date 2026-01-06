@@ -157,8 +157,10 @@ setup_passphrase() {
     echo -e "${DIM}Choose something memorable - you'll need it if you restart.${NC}"
     echo ""
 
+    # Read from /dev/tty to handle piped input from curl
     while true; do
-        read -sp "Enter passphrase (min 8 characters): " PASSPHRASE
+        echo -n "Enter passphrase (min 8 characters): "
+        read -s PASSPHRASE < /dev/tty
         echo ""
         
         if [ ${#PASSPHRASE} -lt 8 ]; then
@@ -166,7 +168,8 @@ setup_passphrase() {
             continue
         fi
 
-        read -sp "Confirm passphrase: " PASSPHRASE_CONFIRM
+        echo -n "Confirm passphrase: "
+        read -s PASSPHRASE_CONFIRM < /dev/tty
         echo ""
 
         if [ "$PASSPHRASE" != "$PASSPHRASE_CONFIRM" ]; then
@@ -265,7 +268,8 @@ configure_claude() {
     echo "  3) Both"
     echo "  4) Skip (configure manually later)"
     echo ""
-    read -p "Choice [1-4]: " -n 1 -r CHOICE
+    echo -n "Choice [1-4]: "
+    read -n 1 -r CHOICE < /dev/tty
     echo ""
     
     case $CHOICE in
