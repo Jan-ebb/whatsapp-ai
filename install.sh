@@ -189,10 +189,9 @@ EOF
     print_success "Configuration saved"
 }
 
-# Add WhatsApp to an MCP config file
-add_to_mcp_config() {
+# Add WhatsApp to Claude Desktop config file
+add_to_desktop_config() {
     local CONFIG_FILE="$1"
-    local CONFIG_NAME="$2"
     
     # Create directory if needed
     mkdir -p "$(dirname "$CONFIG_FILE")"
@@ -204,7 +203,7 @@ add_to_mcp_config() {
         
         # Check if whatsapp already configured
         if grep -q '"whatsapp"' "$CONFIG_FILE"; then
-            print_warn "WhatsApp already configured in $CONFIG_NAME"
+            print_warn "WhatsApp already configured in Claude Desktop"
             return 1
         else
             # Add to existing config using Python (available on macOS)
@@ -228,7 +227,7 @@ config["mcpServers"]["whatsapp"] = {
 with open("$CONFIG_FILE", "w") as f:
     json.dump(config, f, indent=2)
 EOF
-            print_success "Added WhatsApp to $CONFIG_NAME"
+            print_success "Added WhatsApp to Claude Desktop"
             return 0
         fi
     else
@@ -246,9 +245,29 @@ EOF
   }
 }
 EOF
-        print_success "Created $CONFIG_NAME config"
+        print_success "Created Claude Desktop config"
         return 0
     fi
+}
+
+# Configure Claude Code using the CLI
+configure_claude_code() {
+    if ! command_exists claude; then
+        print_warn "Claude Code CLI not found. Install it first: npm install -g @anthropic-ai/claude-code"
+        return 1
+    fi
+    
+    # Remove existing config if present
+    claude mcp remove whatsapp -s user 2>/dev/null || true
+    
+    # Add MCP server globally for user
+    claude mcp add whatsapp -s user -- node "$INSTALL_DIR/dist/index.js"
+    
+    # Add environment variable
+    claude mcp add-env whatsapp WHATSAPP_PASSPHRASE "$PASSPHRASE" -s user
+    
+    print_success "Added WhatsApp to Claude Code"
+    return 0
 }
 
 # Configure Claude clients
@@ -256,9 +275,6 @@ configure_claude() {
     # Config file locations
     CLAUDE_DESKTOP_DIR="$HOME/Library/Application Support/Claude"
     CLAUDE_DESKTOP_CONFIG="$CLAUDE_DESKTOP_DIR/claude_desktop_config.json"
-    
-    # Claude Code uses ~/.claude.json for global config
-    CLAUDE_CODE_CONFIG="$HOME/.claude.json"
     
     echo ""
     echo -e "${BOLD}Which Claude client do you want to configure?${NC}"
@@ -275,33 +291,29 @@ configure_claude() {
     case $CHOICE in
         1)
             print_step "Configuring Claude Desktop..."
-            add_to_mcp_config "$CLAUDE_DESKTOP_CONFIG" "Claude Desktop"
+            add_to_desktop_config "$CLAUDE_DESKTOP_CONFIG"
             ;;
         2)
             print_step "Configuring Claude Code..."
-            add_to_mcp_config "$CLAUDE_CODE_CONFIG" "Claude Code"
+            configure_claude_code
             ;;
         3)
             print_step "Configuring Claude Desktop..."
-            add_to_mcp_config "$CLAUDE_DESKTOP_CONFIG" "Claude Desktop"
+            add_to_desktop_config "$CLAUDE_DESKTOP_CONFIG"
             print_step "Configuring Claude Code..."
-            add_to_mcp_config "$CLAUDE_CODE_CONFIG" "Claude Code"
+            configure_claude_code
             ;;
         4|*)
             print_warn "Skipping automatic configuration"
             echo ""
-            echo "To configure manually, add this to your MCP config:"
+            echo "To configure manually:"
             echo ""
-            echo -e "${DIM}Claude Desktop: ~/Library/Application Support/Claude/claude_desktop_config.json${NC}"
-            echo -e "${DIM}Claude Code:    ~/.claude/mcp.json${NC}"
+            echo -e "${BOLD}Claude Code:${NC}"
+            echo "  claude mcp add whatsapp -s user -- node $INSTALL_DIR/dist/index.js"
+            echo "  claude mcp add-env whatsapp WHATSAPP_PASSPHRASE \"$PASSPHRASE\" -s user"
             echo ""
-            echo '  "whatsapp": {'
-            echo '    "command": "node",'
-            echo "    \"args\": [\"$INSTALL_DIR/dist/index.js\"],"
-            echo '    "env": {'
-            echo "      \"WHATSAPP_PASSPHRASE\": \"$PASSPHRASE\""
-            echo '    }'
-            echo '  }'
+            echo -e "${BOLD}Claude Desktop:${NC}"
+            echo "  Edit: ~/Library/Application Support/Claude/claude_desktop_config.json"
             ;;
     esac
 }
