@@ -257,8 +257,8 @@ configure_claude() {
     CLAUDE_DESKTOP_DIR="$HOME/Library/Application Support/Claude"
     CLAUDE_DESKTOP_CONFIG="$CLAUDE_DESKTOP_DIR/claude_desktop_config.json"
     
-    CLAUDE_CODE_DIR="$HOME/.claude"
-    CLAUDE_CODE_CONFIG="$CLAUDE_CODE_DIR/mcp.json"
+    # Claude Code uses ~/.claude.json for global config
+    CLAUDE_CODE_CONFIG="$HOME/.claude.json"
     
     echo ""
     echo -e "${BOLD}Which Claude client do you want to configure?${NC}"
