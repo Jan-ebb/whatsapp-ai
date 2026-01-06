@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# WhatsApp MCP Server - Interactive Setup Script
+# WhatsApp AI - Interactive Setup Script
 # For macOS
 
 set -e
@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 print_banner() {
     echo ""
     echo -e "${BOLD}${GREEN}╔════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}${GREEN}║   WhatsApp MCP Server Setup Wizard     ║${NC}"
+    echo -e "${BOLD}${GREEN}║       WhatsApp AI Setup Wizard         ║${NC}"
     echo -e "${BOLD}${GREEN}╚════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -184,7 +184,7 @@ setup_complete() {
   "mcpServers": {
     "whatsapp": {
       "command": "node",
-      "args": ["FULL_PATH_TO/whatsapp-mcp/dist/index.js"],
+      "args": ["FULL_PATH_TO/whatsapp-ai/dist/index.js"],
       "env": {
         "WHATSAPP_PASSPHRASE": "YOUR_PASSPHRASE"
       }

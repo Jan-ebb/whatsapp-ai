@@ -1,7 +1,11 @@
 {
-  "name": "whatsapp-cli",
+  "name": "whatsapp-ai",
   "version": "1.0.0",
-  "description": "WhatsApp CLI and MCP server with security-first design",
+  "description": "WhatsApp AI - Secure AI assistant for WhatsApp with semantic search",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jan-ebb/whatsapp-ai.git"
+  },
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

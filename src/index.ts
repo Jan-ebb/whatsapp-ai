@@ -41,7 +41,7 @@ function log(message: string, type: 'info' | 'success' | 'warn' | 'error' | 'ste
 function printBanner(): void {
   console.error('');
   console.error(`${colors.bright}${colors.green}╔════════════════════════════════════════╗${colors.reset}`);
-  console.error(`${colors.bright}${colors.green}║      WhatsApp MCP Server v1.0.0        ║${colors.reset}`);
+  console.error(`${colors.bright}${colors.green}║         WhatsApp AI v1.0.0             ║${colors.reset}`);
   console.error(`${colors.bright}${colors.green}╚════════════════════════════════════════╝${colors.reset}`);
   console.error('');
 }

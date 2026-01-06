@@ -1,18 +1,24 @@
-# WhatsApp CLI
+# WhatsApp AI
 
-A security-first CLI and Model Context Protocol (MCP) server for WhatsApp. Control your personal WhatsApp account through the command line or AI assistants like Claude.
+A secure AI assistant for WhatsApp with semantic search. Control your personal WhatsApp through AI assistants like Claude with full message history and intelligent search.
+
+## Quick Install (macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Jan-ebb/whatsapp-ai/main/install.sh | bash
+```
+
+This will install everything you need and configure Claude Desktop automatically.
 
 ## Features
 
-- **Single-process architecture** - TypeScript/Node.js using Baileys library
-- **Security-first design** - Encrypted storage, rate limiting, confirmation required for write operations
-- **Historical message sync** - Automatically fetches message history (configurable from 7 days to full history)
-- **Full messaging** - Send, reply, forward, react, delete, edit messages
-- **Media support** - Send and receive images, videos, documents, audio
-- **Group management** - Create groups, add/remove participants
-- **Chat management** - Archive, pin, mute, mark as read
-- **Scheduled messages** - Queue messages for future delivery
-- **Full-text search** - FTS5-powered message search
+- **AI-Powered Search** - Semantic search finds messages by meaning, not just keywords
+- **Full Encryption** - All messages encrypted at rest with SQLCipher (AES-256)
+- **Local & Private** - Everything runs on your machine, no cloud services
+- **Historical Sync** - Access your full WhatsApp message history
+- **Full Messaging** - Send, reply, forward, react, delete, edit messages
+- **Media Support** - Send and receive images, videos, documents, audio
+- **Group Management** - Create groups, add/remove participants
 
 ## Security
 
@@ -21,38 +27,31 @@ All data is stored locally and fully encrypted:
 - **Encrypted database** - All messages encrypted at rest with SQLCipher (AES-256)
 - **Encrypted credentials** - WhatsApp auth state encrypted with AES-256-GCM
 - **No network exposure** - stdio transport only, no HTTP server
-- **Confirmation required** - Write operations require explicit `confirm: true`
+- **Confirmation required** - Write operations require explicit confirmation
 - **Rate limiting** - Prevents bulk data extraction
-- **Output truncation** - Max 50 messages per query
 - **No message logging** - Message content never logged
 
-## Installation
+## Manual Installation
 
 ### Prerequisites
 
 - Node.js 20+
-- npm (comes with Node.js)
+- Ollama (for semantic search)
 
-### Quick Setup (Recommended)
+### Setup
 
 ```bash
-git clone https://github.com/yourusername/whatsapp-cli.git
-cd whatsapp-cli
+git clone https://github.com/Jan-ebb/whatsapp-ai.git
+cd whatsapp-ai
 ./setup.sh
 ```
 
-The interactive setup will guide you through installation and configuration.
-
-### Manual Setup
+### Ollama Setup (for Semantic Search)
 
 ```bash
-git clone https://github.com/yourusername/whatsapp-cli.git
-cd whatsapp-cli
-npm install
-npm run build
-cp .env.example .env
-# Edit .env and set WHATSAPP_PASSPHRASE
-npm start
+brew install ollama
+ollama pull nomic-embed-text
+ollama serve
 ```
 
 ## Configuration
@@ -63,13 +62,8 @@ npm start
 |----------|----------|---------|-------------|
 | `WHATSAPP_PASSPHRASE` | Yes | - | Encryption passphrase (min 8 chars) |
 | `WHATSAPP_STORE_PATH` | No | `./store` | Path to store data |
-| `WHATSAPP_REQUIRE_CONFIRMATION` | No | `true` | Require confirm flag for writes |
-| `WHATSAPP_MAX_MESSAGES` | No | `50` | Max messages per query |
-| `WHATSAPP_MAX_CHATS` | No | `100` | Max chats per query |
-| `WHATSAPP_RATE_LIMIT` | No | `60` | Requests per minute |
-| `WHATSAPP_IDLE_TIMEOUT` | No | `30` | Session lock timeout (minutes) |
-| `WHATSAPP_LOG_LEVEL` | No | `errors` | Log level: none, errors, operations |
-| `WHATSAPP_HISTORY_SYNC_DAYS` | No | full | Days of history to sync (0=disable, 365=1 year) |
+| `WHATSAPP_HISTORY_SYNC_DAYS` | No | full | Days of history to sync |
+| `WHATSAPP_EMBEDDING_MODEL` | No | `nomic-embed-text` | Ollama model for embeddings |
 
 ### Claude Desktop Configuration
 
@@ -80,25 +74,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "whatsapp": {
       "command": "node",
-      "args": ["/path/to/whatsapp-cli/dist/index.js"],
-      "env": {
-        "WHATSAPP_PASSPHRASE": "your-secure-passphrase-here"
-      }
-    }
-  }
-}
-```
-
-### Cursor Configuration
-
-Add to `~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "whatsapp": {
-      "command": "node",
-      "args": ["/path/to/whatsapp-cli/dist/index.js"],
+      "args": ["/path/to/whatsapp-ai/dist/index.js"],
       "env": {
         "WHATSAPP_PASSPHRASE": "your-secure-passphrase-here"
       }
@@ -109,141 +85,68 @@ Add to `~/.cursor/mcp.json`:
 
 ## First Run
 
-1. Start the MCP server (via Claude/Cursor or manually)
+1. Start the server (via Claude Desktop or manually with `npm start`)
 2. A QR code will appear in the terminal
 3. Open WhatsApp on your phone → Settings → Linked Devices → Link a Device
 4. Scan the QR code
 5. Wait for connection confirmation
 
-Re-authentication may be required after ~20 days.
+## Search Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `search_messages` | Keyword search (exact matches) | "meeting tomorrow" |
+| `semantic_search` | AI search (finds meaning) | "messages where someone seemed frustrated" |
+| `hybrid_search` | Combined (recommended) | "project deadline concerns" |
 
 ## Available Tools
 
-### Messaging (require `confirm: true`)
+### Messaging
+`send_message`, `send_media`, `reply_to_message`, `forward_message`, `react_to_message`, `delete_message`, `edit_message`, `star_message`
 
-| Tool | Description |
-|------|-------------|
-| `send_message` | Send text message |
-| `send_media` | Send image/video/document/audio |
-| `reply_to_message` | Reply to specific message |
-| `forward_message` | Forward message to another chat |
-| `react_to_message` | Add emoji reaction |
-| `delete_message` | Delete message |
-| `edit_message` | Edit sent message |
-| `star_message` | Star/unstar message |
+### Search & Chat
+`list_chats`, `get_chat`, `get_messages`, `search_messages`, `semantic_search`, `hybrid_search`, `mark_as_read`, `archive_chat`, `pin_chat`, `mute_chat`
 
-### Chats & Messages
-
-| Tool | Description |
-|------|-------------|
-| `list_chats` | List chats with filters |
-| `get_chat` | Get chat details |
-| `get_messages` | Get messages with pagination |
-| `search_messages` | Full-text search |
-| `mark_as_read` | Mark chat as read |
-| `archive_chat` | Archive/unarchive |
-| `pin_chat` | Pin/unpin |
-| `mute_chat` | Mute/unmute |
-
-### Contacts
-
-| Tool | Description |
-|------|-------------|
-| `search_contacts` | Search by name/number |
-| `get_contact` | Get contact details |
-| `get_profile_picture` | Get profile picture URL |
-
-### Groups (require `confirm: true`)
-
-| Tool | Description |
-|------|-------------|
-| `create_group` | Create new group |
-| `get_group_info` | Get group metadata |
-| `add_participants` | Add members |
-| `remove_participants` | Remove members |
-
-### Presence
-
-| Tool | Description |
-|------|-------------|
-| `get_presence` | Subscribe to online status |
-| `send_typing` | Send typing indicator |
+### Contacts & Groups
+`search_contacts`, `get_contact`, `get_profile_picture`, `create_group`, `get_group_info`, `add_participants`, `remove_participants`
 
 ### Utility
-
-| Tool | Description |
-|------|-------------|
-| `get_connection_status` | Check connection |
-| `logout` | Disconnect and clear credentials |
-| `schedule_message` | Schedule future message |
-| `cancel_scheduled` | Cancel scheduled message |
-| `list_scheduled` | List pending scheduled messages |
+`get_connection_status`, `get_embedding_status`, `embed_historical_messages`, `schedule_message`, `list_scheduled`
 
 ## Usage Examples
 
-### Send a message
-
+**Search by meaning:**
 ```
-Use send_message with recipient "1234567890" and message "Hello!" with confirm: true
-```
-
-### Search messages
-
-```
-Use search_messages with query "meeting tomorrow"
+"Find messages where someone was running late"
+→ Uses semantic_search to find "running behind", "delayed", "won't make it on time", etc.
 ```
 
-### Create a group
-
+**Send a message:**
 ```
-Use create_group with name "Project Team" and participants ["1234567890", "0987654321"] with confirm: true
+"Send 'On my way!' to John"
+→ Uses send_message with confirmation
+```
+
+**Get context:**
+```
+"What did Sarah say about the project last week?"
+→ Uses hybrid_search + get_messages
 ```
 
 ## Troubleshooting
 
-### QR Code Not Displaying
+### Semantic search not working
+- Make sure Ollama is running: `ollama serve`
+- Check model is installed: `ollama pull nomic-embed-text`
+- Run `get_embedding_status` to check status
 
-- Check terminal supports QR code display
-- Try restarting the server
+### Connection issues
+- Delete `store/auth/` and re-scan QR code
+- Check WhatsApp is still linked on your phone
 
-### Connection Issues
-
-- Delete `store/auth/` directory and re-authenticate
-- Check WhatsApp is not logged out on phone
-
-### Rate Limit Exceeded
-
-- Wait for the reset period (shown in error)
-- Reduce query frequency
-
-### Wrong Passphrase
-
-- If you forget your passphrase, delete the `store/` directory
+### Wrong passphrase
+- Delete `store/` directory and start fresh
 - You'll need to re-authenticate with WhatsApp
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    WhatsApp MCP Server                       │
-│                     (TypeScript/Node.js)                     │
-├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (stdio transport)                                 │
-│  └── Tools (30+ operations)                                 │
-├─────────────────────────────────────────────────────────────┤
-│  Security Layer                                              │
-│  ├── Encryption (AES-256-GCM)                               │
-│  ├── Rate Limiting                                          │
-│  ├── Session Management                                     │
-│  └── Confirmation Checks                                    │
-├─────────────────────────────────────────────────────────────┤
-│  WhatsApp Service (Baileys)                                 │
-│  └── Multi-device Web Protocol                              │
-├─────────────────────────────────────────────────────────────┤
-│  Storage (SQLite + FTS5)                                    │
-│  └── Messages, Chats, Contacts, Scheduled                   │
-└─────────────────────────────────────────────────────────────┘
-```
 
 ## License
 

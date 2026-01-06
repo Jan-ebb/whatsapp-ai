@@ -1,15 +1,16 @@
-# WhatsApp MCP Server Documentation
+# WhatsApp AI Documentation
 
-This document explains how the WhatsApp MCP Server works and how to use it.
+This document explains how WhatsApp AI works and how to use it.
 
 ## Quick Start (macOS)
 
 ```bash
-# Clone and enter the directory
-git clone <repo>
-cd whatsapp-mcp
+# One-line install
+curl -fsSL https://raw.githubusercontent.com/Jan-ebb/whatsapp-ai/main/install.sh | bash
 
-# Run the interactive setup
+# Or manual setup
+git clone https://github.com/Jan-ebb/whatsapp-ai.git
+cd whatsapp-ai
 ./setup.sh
 ```
 
@@ -23,13 +24,13 @@ The setup script will:
 
 ## Overview
 
-The WhatsApp MCP Server is a Model Context Protocol (MCP) server that allows AI assistants (like Claude or Cursor) to interact with your personal WhatsApp account. It uses the Baileys library to connect to WhatsApp's multi-device web protocol.
+WhatsApp AI is a Model Context Protocol (MCP) server that allows AI assistants (like Claude) to interact with your personal WhatsApp account. It uses the Baileys library to connect to WhatsApp's multi-device web protocol and Ollama for local AI-powered semantic search.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    WhatsApp MCP Server                       │
+│                       WhatsApp AI                            │
 │                     (TypeScript/Node.js)                     │
 ├─────────────────────────────────────────────────────────────┤
 │  MCP Layer (stdio transport)                                 │

@@ -141,7 +141,7 @@ export async function createServer(
   // Create MCP server
   const server = new Server(
     {
-      name: 'whatsapp-mcp',
+      name: 'whatsapp-ai',
       version: '1.0.0',
     },
     {
