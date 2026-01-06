@@ -670,28 +670,23 @@ export class WhatsAppClient extends EventEmitter {
     this.socket.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest }) => {
       this.historySyncCount++;
       
-      const progress = Math.min(95, Math.round((this.historySyncCount / this.expectedHistorySyncs) * 100));
+      // Don't go to 100% until isLatest is true
+      const progress = isLatest ? 100 : Math.min(95, Math.round((this.historySyncCount / this.expectedHistorySyncs) * 100));
       const elapsed = (Date.now() - this.syncStartTime) / 1000;
-      const estimatedTotal = elapsed / (progress / 100);
+      const estimatedTotal = progress > 0 ? elapsed / (progress / 100) : 60;
       const estimatedTimeLeft = Math.max(0, Math.round(estimatedTotal - elapsed));
       
       this.syncProgress = {
-        stage: 'syncing',
+        stage: isLatest ? 'ready' : 'syncing',
         progress,
         chatsTotal: chats.length,
         chatsSynced: chats.length,
         messagesTotal: messages.length,
         messagesSynced: messages.length,
-        estimatedTimeLeft,
+        estimatedTimeLeft: isLatest ? 0 : estimatedTimeLeft,
       };
       
       this.emit('sync.progress', this.syncProgress);
-      
-      // If this is the latest batch, sync is complete
-      if (isLatest) {
-        this.syncProgress = { stage: 'ready', progress: 100 };
-        this.emit('sync.progress', this.syncProgress);
-      }
     });
 
     // New messages

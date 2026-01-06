@@ -116,9 +116,12 @@ async function main(): Promise<void> {
     log('Connecting to WhatsApp...', 'step');
 
     // Set up connection status logging
+    let syncComplete = false;
+    
     context.whatsapp.on('connection.update', (update) => {
       if (update.isConnected) {
         log('Connected to WhatsApp', 'success');
+        // Don't show "ready" here - wait for sync to complete
       } else if (update.qrCode) {
         console.error('');
         log('Scan this QR code with WhatsApp on your phone:', 'info');
@@ -136,7 +139,7 @@ async function main(): Promise<void> {
       
       if (progress.stage === 'syncing' && progress.progress !== undefined) {
         // Only log every 2 seconds to avoid spam
-        if (now - lastProgressLog > 2000) {
+        if (now - lastProgressLog > 2000 || progress.progress === 0) {
           lastProgressLog = now;
           const timeLeft = progress.estimatedTimeLeft 
             ? ` (~${progress.estimatedTimeLeft}s remaining)` 
@@ -148,7 +151,8 @@ async function main(): Promise<void> {
           // Use carriage return to update the same line
           process.stderr.write(`\r${colors.cyan}→${colors.reset} Syncing message history: ${progress.progress}%${details}${timeLeft}    `);
         }
-      } else if (progress.stage === 'ready') {
+      } else if (progress.stage === 'ready' && !syncComplete) {
+        syncComplete = true;
         // Clear the progress line and show completion
         process.stderr.write('\r' + ' '.repeat(80) + '\r');
         log('Message history synced', 'success');
