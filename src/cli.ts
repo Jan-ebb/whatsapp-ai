@@ -241,8 +241,8 @@ async function main(): Promise<void> {
     const encryption = new Encryption(STORE_PATH);
     await encryption.initialize(PASSPHRASE);
 
-    // Initialize database
-    const db = new DatabaseManager(STORE_PATH);
+    // Initialize database with encryption
+    const db = new DatabaseManager(STORE_PATH, PASSPHRASE);
     db.initialize();
 
     const dbInstance = db.getDb();
